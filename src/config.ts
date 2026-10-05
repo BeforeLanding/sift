@@ -1,0 +1,184 @@
+/**
+ * Loads and validates agents-radar configuration from config.yml.
+ * Falls back to built-in defaults if the file is missing or a section is absent.
+ */
+
+import fs from "node:fs";
+import path from "node:path";
+import yaml from "js-yaml";
+import type { RepoConfig } from "./github.ts";
+import { DEFAULT_PROFILE, type JevProfile } from "./jev/profile.ts";
+
+// ---------------------------------------------------------------------------
+// Schema types
+// ---------------------------------------------------------------------------
+
+interface RawRepoEntry {
+  id: string;
+  repo: string;
+  name: string;
+  paginated?: boolean;
+  discussions?: boolean;
+}
+
+/**
+ * The `profile:` section — the interest profile the Jev pre-filter judges
+ * against. Every field is optional; a missing section disables filtering.
+ */
+interface RawProfile {
+  topics?: string[];
+  positive_keywords?: string[];
+  negative_keywords?: string[];
+  tracked_projects?: string[];
+  item_threshold?: number;
+  gate_threshold?: number;
+  min_confidence?: number;
+  max_items_per_source?: number;
+}
+
+interface RawConfig {
+  cli_repos?: RawRepoEntry[];
+  skills_repo?: string;
+  openclaw?: RawRepoEntry;
+  openclaw_peers?: RawRepoEntry[];
+  infra_repos?: RawRepoEntry[];
+  profile?: RawProfile;
+}
+
+export interface RadarConfig {
+  cliRepos: RepoConfig[];
+  skillsRepo: string;
+  openclaw: RepoConfig;
+  openclawPeers: RepoConfig[];
+  infraRepos: RepoConfig[];
+  profile: JevProfile;
+}
+
+// ---------------------------------------------------------------------------
+// Defaults (mirrors the original hard-coded values)
+// ---------------------------------------------------------------------------
+
+const DEFAULT_CLI_REPOS: RepoConfig[] = [
+  { id: "claude-code", repo: "anthropics/claude-code", name: "Claude Code" },
+  { id: "codex", repo: "openai/codex", name: "OpenAI Codex", discussions: true },
+  { id: "gemini-cli", repo: "google-gemini/gemini-cli", name: "Gemini CLI" },
+  { id: "copilot-cli", repo: "github/copilot-cli", name: "GitHub Copilot CLI" },
+  { id: "opencode", repo: "anomalyco/opencode", name: "OpenCode" },
+  { id: "pi", repo: "earendil-works/pi", name: "Pi", discussions: true },
+  { id: "qwen-code", repo: "QwenLM/qwen-code", name: "Qwen Code" },
+];
+
+const DEFAULT_SKILLS_REPO = "anthropics/skills";
+
+const DEFAULT_OPENCLAW: RepoConfig = {
+  id: "openclaw",
+  repo: "openclaw/openclaw",
+  name: "OpenClaw",
+  paginated: true,
+};
+
+const DEFAULT_OPENCLAW_PEERS: RepoConfig[] = [
+  { id: "hermes-agent", repo: "nousresearch/hermes-agent", name: "Hermes Agent" },
+  { id: "ironclaw", repo: "nearai/ironclaw", name: "IronClaw" },
+  { id: "qwenpaw", repo: "agentscope-ai/QwenPaw", name: "QwenPaw" },
+  { id: "zeroclaw", repo: "zeroclaw-labs/zeroclaw", name: "ZeroClaw" },
+];
+
+// Inference engines, gateways and fine-tuning frameworks — the layer the CLI
+// agents run on top of. High daily volume, so most are paginated.
+const DEFAULT_INFRA_REPOS: RepoConfig[] = [
+  { id: "vllm", repo: "vllm-project/vllm", name: "vLLM", paginated: true },
+  { id: "sglang", repo: "sgl-project/sglang", name: "SGLang", paginated: true },
+  { id: "llama-cpp", repo: "ggml-org/llama.cpp", name: "llama.cpp", paginated: true },
+  { id: "ollama", repo: "ollama/ollama", name: "Ollama" },
+  { id: "litellm", repo: "BerriAI/litellm", name: "LiteLLM", paginated: true },
+  { id: "unsloth", repo: "unslothai/unsloth", name: "Unsloth", paginated: true },
+];
+
+// ---------------------------------------------------------------------------
+// Loader
+// ---------------------------------------------------------------------------
+
+export function toRepoConfig(e: RawRepoEntry): RepoConfig {
+  return {
+    id: e.id,
+    repo: e.repo,
+    name: e.name,
+    ...(e.paginated ? { paginated: true } : {}),
+    ...(e.discussions ? { discussions: true } : {}),
+  };
+}
+
+/** A string list from YAML, ignoring anything that is not an array of strings. */
+function toStringList(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return value.filter((v): v is string => typeof v === "string" && v.trim() !== "");
+}
+
+/** A finite number from YAML, falling back to the default. */
+function toNumber(value: unknown, fallback: number): number {
+  return typeof value === "number" && Number.isFinite(value) ? value : fallback;
+}
+
+export function toProfile(raw?: RawProfile): JevProfile {
+  return {
+    topics: toStringList(raw?.topics),
+    positiveKeywords: toStringList(raw?.positive_keywords),
+    negativeKeywords: toStringList(raw?.negative_keywords),
+    trackedProjects: toStringList(raw?.tracked_projects),
+    itemThreshold: toNumber(raw?.item_threshold, DEFAULT_PROFILE.itemThreshold),
+    gateThreshold: toNumber(raw?.gate_threshold, DEFAULT_PROFILE.gateThreshold),
+    minConfidence: toNumber(raw?.min_confidence, DEFAULT_PROFILE.minConfidence),
+    maxItemsPerSource: toNumber(raw?.max_items_per_source, DEFAULT_PROFILE.maxItemsPerSource),
+  };
+}
+
+export function loadConfig(configPath = "config.yml"): RadarConfig {
+  const resolved = path.resolve(configPath);
+
+  if (!fs.existsSync(resolved)) {
+    console.log(`[config] ${configPath} not found — using built-in defaults.`);
+    return {
+      cliRepos: DEFAULT_CLI_REPOS,
+      skillsRepo: DEFAULT_SKILLS_REPO,
+      openclaw: DEFAULT_OPENCLAW,
+      openclawPeers: DEFAULT_OPENCLAW_PEERS,
+      infraRepos: DEFAULT_INFRA_REPOS,
+      profile: { ...DEFAULT_PROFILE },
+    };
+  }
+
+  const raw = yaml.load(fs.readFileSync(resolved, "utf-8")) as RawConfig;
+
+  const cliRepos =
+    Array.isArray(raw?.cli_repos) && raw.cli_repos.length > 0
+      ? raw.cli_repos.map(toRepoConfig)
+      : DEFAULT_CLI_REPOS;
+
+  const skillsRepo =
+    typeof raw?.skills_repo === "string" && raw.skills_repo.trim()
+      ? raw.skills_repo.trim()
+      : DEFAULT_SKILLS_REPO;
+
+  const openclaw = raw?.openclaw?.id && raw.openclaw.repo ? toRepoConfig(raw.openclaw) : DEFAULT_OPENCLAW;
+
+  const openclawPeers =
+    Array.isArray(raw?.openclaw_peers) && raw.openclaw_peers.length > 0
+      ? raw.openclaw_peers.map(toRepoConfig)
+      : DEFAULT_OPENCLAW_PEERS;
+
+  const infraRepos =
+    Array.isArray(raw?.infra_repos) && raw.infra_repos.length > 0
+      ? raw.infra_repos.map(toRepoConfig)
+      : DEFAULT_INFRA_REPOS;
+
+  const profile = toProfile(raw?.profile);
+
+  console.log(
+    `[config] Loaded from ${configPath}: ` +
+      `${cliRepos.length} CLI repos, ${openclawPeers.length} OpenClaw peers, ${infraRepos.length} infra repos` +
+      (profile.topics.length || profile.trackedProjects.length ? `, interest profile set` : ""),
+  );
+
+  return { cliRepos, skillsRepo, openclaw, openclawPeers, infraRepos, profile };
+}

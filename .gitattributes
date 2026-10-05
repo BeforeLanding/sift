@@ -1,0 +1,14 @@
+# Normalize every text file to LF in the repository and in the working tree.
+# `eol=lf` takes precedence over core.autocrlf, so a Windows checkout with
+# autocrlf=true still gets LF files — which is what Prettier's default
+# endOfLine:"lf" and the Linux CI both expect.
+* text=auto eol=lf
+
+# Images must never be line-ending-converted.
+*.png binary
+*.jpg binary
+*.jpeg binary
+
+# Snapshotted digests are generated content; leave them untouched by diffs
+# tooling that would try to render them as text.
+digests/** linguist-generated

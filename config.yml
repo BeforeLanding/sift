@@ -1,0 +1,145 @@
+# agents-radar configuration
+# Edit this file to customize which repositories are tracked.
+# Changes take effect on the next workflow run.
+
+# ── AI CLI tools ──────────────────────────────────────────────────────────────
+# Tracked for per-tool digests and cross-tool comparison.
+# Each entry requires: id (filename slug), repo (owner/repo), name (display name).
+# Set paginated: true for high-volume repos with many daily updates.
+# Set discussions: true to also pull GitHub Discussions (GraphQL). Enable only
+# where the board is actually active — most repos have it on but dormant.
+
+cli_repos:
+  - id: claude-code
+    repo: anthropics/claude-code
+    name: Claude Code
+  - id: codex
+    repo: openai/codex
+    name: OpenAI Codex
+    discussions: true
+  - id: gemini-cli
+    repo: google-gemini/gemini-cli
+    name: Gemini CLI
+  - id: copilot-cli
+    repo: github/copilot-cli
+    name: GitHub Copilot CLI
+  - id: opencode
+    repo: anomalyco/opencode
+    name: OpenCode
+  - id: pi
+    repo: earendil-works/pi
+    name: Pi
+    discussions: true
+  - id: qwen-code
+    repo: QwenLM/qwen-code
+    name: Qwen Code
+
+# ── Claude Code Skills ────────────────────────────────────────────────────────
+# Tracked separately without a date filter, sorted by community engagement.
+
+skills_repo: anthropics/skills
+
+# ── OpenClaw (primary focus project) ─────────────────────────────────────────
+# Tracked with a dedicated deep-dive report. Set paginated: true for high-volume repos.
+
+openclaw:
+  id: openclaw
+  repo: openclaw/openclaw
+  name: OpenClaw
+  paginated: true
+
+# ── OpenClaw peer projects ────────────────────────────────────────────────────
+# Tracked alongside OpenClaw for cross-ecosystem comparison.
+
+openclaw_peers:
+  - id: hermes-agent
+    repo: nousresearch/hermes-agent
+    name: Hermes Agent
+  - id: ironclaw
+    repo: nearai/ironclaw
+    name: IronClaw
+  - id: qwenpaw
+    repo: agentscope-ai/QwenPaw
+    name: QwenPaw
+  - id: zeroclaw
+    repo: zeroclaw-labs/zeroclaw
+    name: ZeroClaw
+
+# ── AI infrastructure ─────────────────────────────────────────────────────────
+# Inference engines, gateways and fine-tuning frameworks that the agent/CLI
+# layer runs on top of. Tracked in a dedicated ai-infra report.
+
+infra_repos:
+  - id: vllm
+    repo: vllm-project/vllm
+    name: vLLM
+    paginated: true
+  - id: sglang
+    repo: sgl-project/sglang
+    name: SGLang
+    paginated: true
+  - id: llama-cpp
+    repo: ggml-org/llama.cpp
+    name: llama.cpp
+    paginated: true
+  - id: ollama
+    repo: ollama/ollama
+    name: Ollama
+  - id: litellm
+    repo: BerriAI/litellm
+    name: LiteLLM
+    paginated: true
+  - id: unsloth
+    repo: unslothai/unsloth
+    name: Unsloth
+    paginated: true
+
+# ── Interest profile (Jev pre-filter) ─────────────────────────────────────────
+# What this digest is *for*. Consulted only by the TypeSafe "Jev" front-end
+# judgment layer: sources are gated and individual items scored against it
+# before any LLM call, so the digest reflects your interests rather than a
+# generic one.
+#
+# With no TYPESAFE_API_KEY set, a deterministic offline mock reads these same
+# fields. Leave the lists empty, or omit this whole section, to disable
+# filtering entirely and get upstream agents-radar behavior.
+
+profile:
+  # Broad interests. An item mentioning one of these scores higher.
+  topics:
+    - AI agents
+    - LLM inference
+    - Claude Code
+    - developer tooling
+
+  # Specific words that raise an item's score.
+  positive_keywords:
+    - release
+    - benchmark
+    - breaking change
+    - security
+    - performance
+
+  # Words that lower it — noise, bots, off-topic chatter.
+  negative_keywords:
+    - "[bot]"
+    - typo
+    - "help wanted"
+    - docs:
+
+  # Projects you follow closely. The strongest signal. Matched on the full
+  # "owner/repo" path or the bare repo name.
+  tracked_projects:
+    - openclaw/openclaw
+    - anthropics/claude-code
+
+  # ── Tuning (all optional; the values below are the defaults) ────────────────
+  # Drop an item when Jev scores it below this, and is confident about it.
+  item_threshold: 0.5
+  # Skip a whole source when its report-worthiness is below this.
+  gate_threshold: 0.5
+  # Below this confidence, Jev's item score is ignored and the item is kept.
+  min_confidence: 0.25
+  # Per-list cap on items sent to Jev. At or above every prompt builder's own
+  # sample size, so lowering it is what makes filtering more aggressive.
+  max_items_per_source: 40
