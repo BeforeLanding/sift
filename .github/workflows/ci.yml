@@ -1,8 +1,10 @@
 name: CI
 
 on:
+  # This fork's default branch is main; upstream used master. Without this the
+  # CI job silently never ran on a push.
   push:
-    branches: [master]
+    branches: [main]
   pull_request:
 
 jobs:
