@@ -2,6 +2,10 @@
 
 [English](./README.md) | 中文
 
+> **这是一个个人 fork。** 基于 [agents-radar](https://github.com/duanyytop/agents-radar) 改造的每日 AI 信息收集助手，加入 [Jev](https://docs.typesafe.ai/introduction)（TypeSafe System One）作为**前置判断层**：在「抓取」与「LLM 生成报告」之间，先按兴趣画像门控数据源，再对幸存源里的条目逐条打分、丢掉低信号的，最后才把幸存者交给模型。日报因此贴合个人关注点，也更省 token——整源被跳过时，它的条目一条都不会被问起。
+>
+> 画像写在 `config.yml` 的 `profile:` 段。不设 `TYPESAFE_API_KEY` 时走确定性离线 mock，整条流水线照常跑通；删掉 `profile:` 整段则完全退化为上游行为。Jev 的任何失败都是 fail-open：条目保留、运行不中止。除这一层前置判断外，其余均为上游行为。
+
 每天早上 07:00 CST 自动运行的 GitHub Actions 工作流。聚合 10 个 AI 生态数据源，以中英双语每日简报的形式发布为 GitHub Issues 并提交为 Markdown 文件。每周和每月自动生成汇总报告。
 
 ### 数据源
@@ -21,7 +25,7 @@
 
 ## Web UI
 
-**[https://duanyytop.github.io/agents-radar](https://duanyytop.github.io/agents-radar)**
+**[https://beforelanding.github.io/sift](https://beforelanding.github.io/sift)**
 
 在线浏览所有历史简报，深色主题，无需登录。报告直接由本仓库的 Markdown 文件通过 GitHub Pages 渲染。每份报告支持中文 / 英文切换。
 
@@ -44,7 +48,7 @@
 
 ## RSS 订阅
 
-**[https://duanyytop.github.io/agents-radar/feed.xml](https://duanyytop.github.io/agents-radar/feed.xml)**
+**[https://beforelanding.github.io/sift/feed.xml](https://beforelanding.github.io/sift/feed.xml)**
 
 在任意 RSS 阅读器（Feedly、Reeder、NewsBlur 等）中订阅，每日自动推送新简报。Feed 包含最新 30 条报告（覆盖所有报告类型），与 `manifest.json` 同步更新。
 

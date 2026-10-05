@@ -2,6 +2,10 @@
 
 English | [中文](./README.zh.md)
 
+> **A personal fork.** A daily AI-news assistant built on [agents-radar](https://github.com/duanyytop/agents-radar), with [Jev](https://docs.typesafe.ai/introduction) (TypeSafe System One) inserted as a **pre-filter**: between fetching and report generation it gates whole sources against an interest profile, then scores the surviving sources' items and drops the low-signal ones, so the LLM only ever sees what is left. The digest reflects one reader's interests and costs fewer tokens — a skipped source costs zero item questions.
+>
+> The profile lives in the `profile:` section of `config.yml`. With no `TYPESAFE_API_KEY` a deterministic offline mock runs and the pipeline still completes end to end; removing the `profile:` section entirely falls back to upstream agents-radar behavior. Every Jev failure is fail-open: items are kept and the run is never aborted. Everything other than this one layer is upstream behavior.
+
 A GitHub Actions workflow that runs every morning at 07:00 CST. It aggregates AI ecosystem signals from 10 data sources, then publishes bilingual (Chinese + English) daily digests as GitHub Issues and committed Markdown files.
 
 ### Data Sources
@@ -21,7 +25,7 @@ A GitHub Actions workflow that runs every morning at 07:00 CST. It aggregates AI
 
 ## Web UI
 
-**[https://duanyytop.github.io/agents-radar](https://duanyytop.github.io/agents-radar)**
+**[https://beforelanding.github.io/sift](https://beforelanding.github.io/sift)**
 
 Browse all historical digests in a clean, dark-themed interface — no login required. Reports are rendered from the Markdown files in this repo via GitHub Pages.
 
@@ -44,7 +48,7 @@ Subscribe to get daily digest notifications pushed directly to your preferred pl
 
 ## RSS Feed
 
-**[https://duanyytop.github.io/agents-radar/feed.xml](https://duanyytop.github.io/agents-radar/feed.xml)**
+**[https://beforelanding.github.io/sift/feed.xml](https://beforelanding.github.io/sift/feed.xml)**
 
 Subscribe in any RSS reader (Feedly, Reeder, NewsBlur, etc.) to receive new digests automatically. The feed includes the latest 30 reports across all report types, updated daily alongside `manifest.json`.
 
