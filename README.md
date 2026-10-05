@@ -2,10 +2,6 @@
 
 English | [中文](./README.zh.md)
 
-> **A personal fork.** A daily AI-news assistant built on [agents-radar](https://github.com/duanyytop/agents-radar), with [Jev](https://docs.typesafe.ai/introduction) (TypeSafe System One) inserted as a **pre-filter**: between fetching and report generation it gates whole sources against an interest profile, then scores the surviving sources' items and drops the low-signal ones, so the LLM only ever sees what is left. The digest reflects one reader's interests and costs fewer tokens — a skipped source costs zero item questions.
->
-> The profile lives in the `profile:` section of `config.yml`. With no `TYPESAFE_API_KEY` a deterministic offline mock runs and the pipeline still completes end to end; removing the `profile:` section entirely falls back to upstream agents-radar behavior. Every Jev failure is fail-open: items are kept and the run is never aborted. Everything other than this one layer is upstream behavior.
-
 A GitHub Actions workflow that runs every morning at 07:00 CST. It aggregates AI ecosystem signals from 10 data sources, then publishes bilingual (Chinese + English) daily digests as GitHub Issues and committed Markdown files.
 
 ### Data Sources
