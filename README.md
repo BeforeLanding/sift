@@ -1,8 +1,10 @@
-# agents-radar
+# sift
 
 English | [中文](./README.zh.md)
 
-A GitHub Actions workflow that runs every morning at 07:00 CST. It aggregates AI ecosystem signals from 10 data sources, then publishes bilingual (Chinese + English) daily digests as GitHub Issues and committed Markdown files.
+A personal daily AI digest. A GitHub Actions workflow runs every morning at 07:00 CST, aggregates signals from 10 AI-ecosystem data sources, and publishes bilingual (Chinese + English) reports as GitHub Issues and committed Markdown files.
+
+The piece that makes it mine is a **relevance pre-filter**: an interest profile in `config.yml` gates whole sources and scores individual items *before* any LLM call, so the digest reflects what I actually care about and costs far fewer tokens.
 
 ### Data Sources
 
@@ -27,21 +29,6 @@ Browse all historical digests in a clean, dark-themed interface — no login req
 
 ![Web UI](assets/web-en.png)
 
-## Telegram Channel & Feishu Group
-
-Subscribe to get daily digest notifications pushed directly to your preferred platform. Each message links to all reports for that day (ZH and EN variants) plus the Web UI and RSS feed.
-
-<table>
-  <tr>
-    <td align="center"><b><a href="https://t.me/agents_radar">Join Telegram Channel</a></b></td>
-    <td align="center"><b><a href="https://applink.feishu.cn/client/chat/chatter/add_by_link?link_token=b56v3be8-b027-4ee6-abc4-65bf1f80bccd">Join Feishu Group</a></b></td>
-  </tr>
-  <tr>
-    <td><img src="assets/telegram.jpg" width="300" alt="Telegram notification"></td>
-    <td><img src="assets/feishu.jpg" width="300" alt="Feishu notification"></td>
-  </tr>
-</table>
-
 ## RSS Feed
 
 **[https://beforelanding.github.io/sift/feed.xml](https://beforelanding.github.io/sift/feed.xml)**
@@ -50,9 +37,7 @@ Subscribe in any RSS reader (Feedly, Reeder, NewsBlur, etc.) to receive new dige
 
 ## MCP Server
 
-**`https://agents-radar-mcp.duanyytop.workers.dev`**
-
-A hosted [Model Context Protocol](https://modelcontextprotocol.io) server that exposes agents-radar data as tools. Any MCP-compatible client (Claude Desktop, OpenClaw, etc.) can query the latest AI ecosystem reports directly.
+An [MCP](https://modelcontextprotocol.io) server in `mcp/` exposes the digests as tools, so any MCP-compatible client (Claude Desktop, OpenClaw, …) can query the latest reports directly.
 
 **Available tools:**
 
@@ -63,54 +48,45 @@ A hosted [Model Context Protocol](https://modelcontextprotocol.io) server that e
 | `get_report` | Fetch a specific report by date and type |
 | `search` | Keyword search across recent reports |
 
-**Claude Desktop setup** — add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
-
-```json
-{
-  "mcpServers": {
-    "agents-radar": {
-      "url": "https://agents-radar-mcp.duanyytop.workers.dev"
-    }
-  }
-}
-```
-
-Restart Claude Desktop after saving. You can then ask Claude things like:
-- *"What's the latest in AI CLI tools?"* → calls `get_latest`
-- *"Search for Claude Code mentions this week"* → calls `search`
-- *"Show me the AI trending report for 2026-03-05"* → calls `get_report`
-
-**OpenClaw setup** — run the following command:
-
-```bash
-openclaw mcp add --transport http agents-radar https://agents-radar-mcp.duanyytop.workers.dev
-```
-
-Or add it manually to `~/.openclaw/openclaw.json`:
-
-```json
-{
-  "mcpServers": {
-    "agents-radar": {
-      "type": "http",
-      "url": "https://agents-radar-mcp.duanyytop.workers.dev"
-    }
-  }
-}
-```
-
-You can then ask OpenClaw things like:
-- *"What's the latest in AI CLI tools?"* → calls `get_latest`
-- *"Search for Claude Code mentions this week"* → calls `search`
-- *"Show me the AI trending report for 2026-03-05"* → calls `get_report`
-
-**Self-hosting** — deploy your own instance from the `mcp/` directory:
+**Deploy your own** — the worker lives in `mcp/`, self-hosted on Cloudflare, and reads the digest Markdown from this repo's GitHub Pages site:
 
 ```bash
 cd mcp
 pnpm install
 wrangler deploy
 ```
+
+`PAGES_URL` in `mcp/src/index.ts` must point at the Pages site the worker reads — change it if you deploy under a different domain.
+
+**Claude Desktop** — add the deployed worker to `~/Library/Application Support/Claude/claude_desktop_config.json`:
+
+```json
+{
+  "mcpServers": {
+    "sift": {
+      "url": "https://<your-worker>.workers.dev"
+    }
+  }
+}
+```
+
+**OpenClaw** — add it manually to `~/.openclaw/openclaw.json`:
+
+```json
+{
+  "mcpServers": {
+    "sift": {
+      "type": "http",
+      "url": "https://<your-worker>.workers.dev"
+    }
+  }
+}
+```
+
+Then you can ask things like:
+- *"What's the latest in AI CLI tools?"* → calls `get_latest`
+- *"Search for Claude Code mentions this week"* → calls `search`
+- *"Show me the AI trending report for 2026-03-05"* → calls `get_report`
 
 ## Tracked sources
 
@@ -190,6 +166,7 @@ New articles are detected by comparing sitemap `lastmod` timestamps against a pe
 
 ## Features
 
+- **Relevance pre-filter** — gates whole sources and scores individual items against a `config.yml` interest profile before any LLM call, then fails open on every error path so a filter outage never blanks a report
 - Fetches issues, pull requests, and releases updated in the last 24 hours across all tracked repos
 - Tracks trending Claude Code Skills — sorted by community engagement, not recency
 - Generates a per-tool summary for each CLI repository and a cross-tool comparative analysis
@@ -202,71 +179,6 @@ New articles are detected by comparing sitemap `lastmod` timestamps against a pe
 - Generates every report body once in English and translates it to Chinese, instead of running the whole pipeline twice per language
 - Runs on a daily schedule via GitHub Actions; supports manual triggering
 - All tracked repositories are configurable via `config.yml` — no code changes needed
-
-## Setup
-
-### 1. Fork this repository
-
-### 2. Customize `config.yml` (optional)
-
-Edit `config.yml` in the repo root to add, remove, or replace the tracked repositories. The file is fully commented. No code changes are needed — the pipeline reads it on every run and falls back to built-in defaults if the file is absent.
-
-```yaml
-# Add a new CLI tool
-cli_repos:
-  - id: my-tool
-    repo: owner/my-ai-cli
-    name: My AI Tool
-
-# Add a new peer project to the OpenClaw ecosystem comparison
-openclaw_peers:
-  - id: my-agent
-    repo: owner/my-agent
-    name: My Agent
-
-# Add a new AI infrastructure project
-infra_repos:
-  - id: my-engine
-    repo: owner/my-engine
-    name: My Engine
-    paginated: true   # for repos with >100 daily issue/PR updates
-```
-
-### 3. Add Secrets
-
-Go to **Settings → Secrets and variables → Actions** and add:
-
-| Secret | Required | Description |
-|--------|----------|-------------|
-| `LLM_PROVIDER` | optional | `anthropic` (default), `openai`, `github-copilot`, `openrouter`, `deepseek`, or `qwen` |
-| `ANTHROPIC_API_KEY` | if Anthropic | API key — works with both Anthropic and Kimi Code |
-| `ANTHROPIC_BASE_URL` | optional | API endpoint override. Set to `https://api.kimi.com/coding/` for Kimi Code; leave unset for Anthropic |
-| `OPENAI_API_KEY` | if OpenAI | OpenAI API key |
-| `OPENAI_BASE_URL` | optional | OpenAI endpoint override |
-| `OPENROUTER_API_KEY` | if OpenRouter | OpenRouter API key |
-| `DEEPSEEK_API_KEY` | if DeepSeek | DeepSeek API key |
-| `DASHSCOPE_API_KEY` | if Qwen | Alibaba Model Studio API key |
-| `TELEGRAM_BOT_TOKEN` | optional | Telegram bot token from [@BotFather](https://t.me/BotFather). If set, a message is sent after each digest run |
-| `TELEGRAM_CHAT_ID` | optional | Telegram chat/channel/group ID to send notifications to |
-| `FEISHU_WEBHOOK_URLS` | optional | Comma-separated Feishu custom bot webhook URLs. If set, a card message is sent to each group after each digest run |
-
-> `GITHUB_TOKEN` is provided automatically by GitHub Actions. When using `github-copilot` as the provider, the same `GITHUB_TOKEN` is used for LLM calls.
-
-**Setting up Telegram notifications** (optional):
-1. Message [@BotFather](https://t.me/BotFather) on Telegram, create a bot, and copy the token
-2. Add the bot to your channel/group, or start a DM with it
-3. Get the chat ID via [@userinfobot](https://t.me/userinfobot) or the [getUpdates](https://core.telegram.org/bots/api#getupdates) API
-4. Add `TELEGRAM_BOT_TOKEN` and `TELEGRAM_CHAT_ID` as repository secrets
-
-> If neither secret is set, the notification step is silently skipped.
-
-### 3. Enable the workflow
-
-Confirm the workflow is enabled in the **Actions** tab.
-
-To test immediately, go to **Actions → Daily Agents Radar → Run workflow**.
-
-> **First run note**: The web content step will fetch up to 50 articles (25 per site) and may take a few extra minutes. Subsequent runs are fast — only new articles are processed.
 
 ## LLM providers
 
@@ -316,7 +228,7 @@ export ANTHROPIC_API_KEY=sk-ant-xxxxxxxx
 # export LLM_PROVIDER=qwen
 # export DASHSCOPE_API_KEY=sk-xxxxxxxx
 
-export DIGEST_REPO=your-username/agents-radar  # optional; omit to only write files
+export DIGEST_REPO=your-username/sift  # optional; omit to only write files
 
 pnpm start
 ```
@@ -458,7 +370,3 @@ To change the schedule, edit the cron expression in `.github/workflows/daily-dig
 GitHub's scheduled runs are queued, not guaranteed — typical delay for this workflow is 10-15 minutes, so a 06:37 CST start lands the digest around 07:00 CST. The minute is off the hour on purpose: the `:00` slot is the most contended, and while this workflow sat at `0 23 * * *` the delays degraded from minutes to hours (the 2026-08-26 run was dispatched 5h07m late, and the 2026-08-27 run was never created at all).
 
 When a scheduled run is late enough that you dispatch a catch-up run manually, the two would otherwise both build the same day's digest and open a duplicate set of issues. Two guards prevent that: a `concurrency: daily-digest` group serializes overlapping runs, and a `guard` job skips any **scheduled** run whose `digests/YYYY-MM-DD` folder (CST date) is already committed. Manual `workflow_dispatch` runs always proceed, so you can still force a regeneration.
-
-## Star History
-
-[![Star History Chart](https://star-history.dera.page/svg?repos=duanyytop/agents-radar&type=Date)](https://star-history.dera.page/#duanyytop/agents-radar&Date)

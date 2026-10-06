@@ -71,7 +71,7 @@ export async function fetchDevtoData(): Promise<DevtoData> {
           });
 
           const resp = await fetch(`${API_URL}?${params}`, {
-            headers: { "User-Agent": "agents-radar/1.0" },
+            headers: { "User-Agent": "sift/1.0" },
           });
 
           if (!resp.ok) {

@@ -10,7 +10,7 @@
  *      the low-signal items dropped.
  *
  * Every failure path here is **fail-open**. Jev is a non-essential judge, so a
- * Jev outage must degrade to a plain agents-radar run, never a thin one:
+ * Jev outage must degrade to a plain sift run, never a thin one:
  *
  *   - a failed or timed-out batch keeps all of its items;
  *   - an item is dropped only when Jev is *confident* it is below threshold;

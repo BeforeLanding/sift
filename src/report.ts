@@ -86,11 +86,11 @@ export function llmHealthLine(): string {
  *
  * Every individual call site degrades gracefully, so without this check a total
  * outage still walks the whole pipeline: it writes placeholder reports, commits
- * them, opens eight GitHub issues and pushes a Telegram message with no
- * highlights — and exits 0, so nothing alerts. That is exactly what happened on
- * 2026-09-03. Throwing makes `pnpm start` exit non-zero, which fails the job and
- * skips the commit, notify and issue steps, so the day is simply missing rather
- * than published wrong — and a manual re-dispatch can still fill it in.
+ * them and opens eight GitHub issues — and exits 0, so nothing alerts. That is
+ * exactly what happened on 2026-09-03. Throwing makes `pnpm start` exit
+ * non-zero, which fails the job and skips the commit and issue steps, so the day
+ * is simply missing rather than published wrong — and a manual re-dispatch can
+ * still fill it in.
  */
 export function assertLlmHealthy(stage: string): void {
   if (llmStats.attempted < LLM_MIN_SAMPLES) return;
@@ -240,53 +240,6 @@ export async function translateToZh(text: string, maxTokens = LLM_TOKENS_DEFAULT
   }
 }
 
-// Matches ASCII control characters U+0000–U+001F. Built from a string so no
-// literal control character appears in the source (keeps it readable + lint-clean).
-// eslint-disable-next-line no-control-regex
-const CONTROL_CHARS = new RegExp("[\\u0000-\\u001F]", "g");
-
-/**
- * Parse JSON returned by an LLM. Strips markdown code fences and replaces raw
- * control characters with spaces before parsing. The model occasionally emits
- * an unescaped control character (e.g. a bare newline) inside a string literal,
- * which is illegal in JSON and makes `JSON.parse` throw "Bad control character
- * in string literal". Control chars outside strings are only insignificant
- * whitespace, so replacing them is safe either way.
- *
- * If the strict parse still fails, the payload is repaired once (drop any prose
- * wrapper around the JSON, strip trailing commas) and retried — a single stray
- * character (e.g. a trailing comma before `}`) used to wipe an entire language's
- * highlights.json.
- */
-export function parseLlmJson<T = unknown>(raw: string): T {
-  const cleaned = raw
-    .replace(/```json?\n?/g, "")
-    .replace(/```/g, "")
-    .replace(CONTROL_CHARS, " ")
-    .trim();
-  try {
-    return JSON.parse(cleaned) as T;
-  } catch (err) {
-    const repaired = repairJson(cleaned);
-    if (repaired !== cleaned) return JSON.parse(repaired) as T;
-    throw err;
-  }
-}
-
-/**
- * Best-effort repair of common LLM JSON defects: narrow to the outermost
- * object/array (dropping surrounding prose) and remove trailing commas before a
- * closing brace or bracket. Returns the input unchanged when nothing applies.
- */
-function repairJson(s: string): string {
-  const first = s.search(/[{[]/);
-  const lastBrace = s.lastIndexOf("}");
-  const lastBracket = s.lastIndexOf("]");
-  const last = Math.max(lastBrace, lastBracket);
-  const narrowed = first >= 0 && last > first ? s.slice(first, last + 1) : s;
-  return narrowed.replace(/,(\s*[}\]])/g, "$1");
-}
-
 // ---------------------------------------------------------------------------
 // File output
 // ---------------------------------------------------------------------------
@@ -301,5 +254,5 @@ export function saveFile(content: string, ...segments: string[]): string {
 export function autoGenFooter(lang: Lang = "zh"): string {
   const digestRepo = process.env["DIGEST_REPO"] ?? "";
   if (!digestRepo) return "";
-  return `\n\n---\n*${FOOTER.autoGen[lang]} [agents-radar](https://github.com/${digestRepo})${lang === "en" ? "." : " 自动生成。"}*`;
+  return `\n\n---\n*${FOOTER.autoGen[lang]} [sift](https://github.com/${digestRepo})${lang === "en" ? "." : " 自动生成。"}*`;
 }

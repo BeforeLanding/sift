@@ -1,8 +1,10 @@
-# agents-radar
+# sift
 
 [English](./README.md) | 中文
 
-每天早上 07:00 CST 自动运行的 GitHub Actions 工作流。聚合 10 个 AI 生态数据源，以中英双语每日简报的形式发布为 GitHub Issues 并提交为 Markdown 文件。每周和每月自动生成汇总报告。
+个人的 AI 每日简报。每天早上 07:00 CST 由 GitHub Actions 自动运行，聚合 10 个 AI 生态数据源，以中英双语报告的形式发布为 GitHub Issues 并提交为 Markdown 文件。
+
+让它成为「我的项目」的那一环是**相关性预过滤**：`config.yml` 里的兴趣画像会在任何 LLM 调用之前，先决定整源是否跳过、再给单条内容打分，所以简报反映的是我真正关心的东西，token 消耗也低得多。
 
 ### 数据源
 
@@ -27,21 +29,6 @@
 
 ![Web UI](assets/web-zh.png) 
 
-## Telegram 频道 & 飞书群
-
-订阅你常用的平台，每日简报生成后自动推送通知，附带所有报告的直达链接（中文 / 英文）。
-
-<table>
-  <tr>
-    <td align="center"><b><a href="https://t.me/agents_radar">加入 Telegram 频道</a></b></td>
-    <td align="center"><b><a href="https://applink.feishu.cn/client/chat/chatter/add_by_link?link_token=b56v3be8-b027-4ee6-abc4-65bf1f80bccd">加入飞书群</a></b></td>
-  </tr>
-  <tr>
-    <td><img src="assets/telegram.jpg" width="300" alt="Telegram 推送"></td>
-    <td><img src="assets/feishu.jpg" width="300" alt="飞书推送"></td>
-  </tr>
-</table>
-
 ## RSS 订阅
 
 **[https://beforelanding.github.io/sift/feed.xml](https://beforelanding.github.io/sift/feed.xml)**
@@ -50,9 +37,7 @@
 
 ## MCP Server
 
-**`https://agents-radar-mcp.duanyytop.workers.dev`**
-
-基于 [Model Context Protocol](https://modelcontextprotocol.io) 的托管服务，将 agents-radar 数据暴露为工具接口。任何支持 MCP 的客户端（Claude Desktop、OpenClaw 等）均可直接查询最新 AI 生态报告。
+`mcp/` 目录下是一个 [MCP](https://modelcontextprotocol.io) 服务，把简报暴露为工具接口，任何支持 MCP 的客户端（Claude Desktop、OpenClaw 等）都能直接查询最新报告。
 
 **可用工具：**
 
@@ -63,54 +48,45 @@
 | `get_report` | 按日期和类型精确获取报告 |
 | `search` | 关键词搜索最近 N 天的报告 |
 
-**Claude Desktop 接入** — 编辑 `~/Library/Application Support/Claude/claude_desktop_config.json`：
-
-```json
-{
-  "mcpServers": {
-    "agents-radar": {
-      "url": "https://agents-radar-mcp.duanyytop.workers.dev"
-    }
-  }
-}
-```
-
-保存后重启 Claude Desktop，即可直接提问：
-- *"最近 AI CLI 工具有什么动态？"* → 调用 `get_latest`
-- *"搜索本周提到 Claude Code 的报告"* → 调用 `search`
-- *"获取 2026-03-05 的 GitHub 趋势报告"* → 调用 `get_report`
-
-**OpenClaw 接入** — 执行以下命令：
-
-```bash
-openclaw mcp add --transport http agents-radar https://agents-radar-mcp.duanyytop.workers.dev
-```
-
-或手动编辑 `~/.openclaw/openclaw.json`：
-
-```json
-{
-  "mcpServers": {
-    "agents-radar": {
-      "type": "http",
-      "url": "https://agents-radar-mcp.duanyytop.workers.dev"
-    }
-  }
-}
-```
-
-配置完成后即可在 OpenClaw 中直接提问：
-- *"最近 AI CLI 工具有什么动态？"* → 调用 `get_latest`
-- *"搜索本周提到 Claude Code 的报告"* → 调用 `search`
-- *"获取 2026-03-05 的 GitHub 趋势报告"* → 调用 `get_report`
-
-**自托管** — 从 `mcp/` 目录部署自己的实例：
+**自行部署** —— Worker 位于 `mcp/`，自托管在 Cloudflare 上，读取本仓库 GitHub Pages 站点里的简报 Markdown：
 
 ```bash
 cd mcp
 pnpm install
 wrangler deploy
 ```
+
+`mcp/src/index.ts` 里的 `PAGES_URL` 必须指向 Worker 读取的 Pages 站点，换域名部署时记得改。
+
+**Claude Desktop 接入** —— 把部署好的 Worker 加到 `~/Library/Application Support/Claude/claude_desktop_config.json`：
+
+```json
+{
+  "mcpServers": {
+    "sift": {
+      "url": "https://<your-worker>.workers.dev"
+    }
+  }
+}
+```
+
+**OpenClaw 接入** —— 手动编辑 `~/.openclaw/openclaw.json`：
+
+```json
+{
+  "mcpServers": {
+    "sift": {
+      "type": "http",
+      "url": "https://<your-worker>.workers.dev"
+    }
+  }
+}
+```
+
+配置完成后即可直接提问：
+- *"最近 AI CLI 工具有什么动态？"* → 调用 `get_latest`
+- *"搜索本周提到 Claude Code 的报告"* → 调用 `search`
+- *"获取 2026-03-05 的 GitHub 趋势报告"* → 调用 `get_report`
 
 ## 追踪来源
 
@@ -189,6 +165,7 @@ LLM 负责过滤非 AI 项目，将结果按维度分类（AI 基础工具 / AI 
 
 ## 功能特性
 
+- **相关性预过滤** —— 在任何 LLM 调用之前，先按 `config.yml` 的兴趣画像跳过整源、给单条内容打分；所有失败路径均 fail-open，过滤层出问题也绝不会让简报变成空白
 - 抓取所有追踪仓库过去 24 小时内更新的 Issues、PR 和 Releases
 - 追踪热门 Claude Code Skills，按社区参与度而非时间排序
 - 为每个 CLI 仓库生成单独摘要，并输出跨工具横向对比分析
@@ -201,71 +178,6 @@ LLM 负责过滤非 AI 项目，将结果按维度分类（AI 基础工具 / AI 
 - 每份报告只用英文生成一次，再翻译成中文，不再对同一份数据跑两遍完整流水线
 - 每日通过 GitHub Actions 定时运行，支持手动触发
 - 所有追踪仓库均可通过 `config.yml` 配置，无需修改代码
-
-## 部署配置
-
-### 1. Fork 本仓库
-
-### 2. 自定义 `config.yml`（可选）
-
-编辑仓库根目录的 `config.yml`，可增删或替换追踪的仓库。文件内有详细注释，每次工作流运行时自动读取，无需改代码。若文件不存在则使用内置默认值。
-
-```yaml
-# 添加新的 CLI 工具
-cli_repos:
-  - id: my-tool
-    repo: owner/my-ai-cli
-    name: My AI Tool
-
-# 添加新的同赛道对比项目
-openclaw_peers:
-  - id: my-agent
-    repo: owner/my-agent
-    name: My Agent
-
-# 添加新的 AI 基础设施项目
-infra_repos:
-  - id: my-engine
-    repo: owner/my-engine
-    name: My Engine
-    paginated: true   # 每日 issue/PR 更新超过 100 条时开启
-```
-
-### 3. 添加 Secrets
-
-进入 **Settings → Secrets and variables → Actions**，添加以下密钥：
-
-| Secret | 必填 | 说明 |
-|--------|------|------|
-| `LLM_PROVIDER` | 可选 | `anthropic`（默认）、`openai`、`github-copilot`、`openrouter`、`deepseek` 或 `qwen` |
-| `ANTHROPIC_API_KEY` | Anthropic 时 | API 密钥，兼容 Anthropic 和 Kimi Code |
-| `ANTHROPIC_BASE_URL` | 可选 | API 地址覆盖。使用 Kimi Code 时设置为 `https://api.kimi.com/coding/`，使用 Anthropic 时留空 |
-| `OPENAI_API_KEY` | OpenAI 时 | OpenAI API 密钥 |
-| `OPENAI_BASE_URL` | 可选 | OpenAI 端点覆盖 |
-| `OPENROUTER_API_KEY` | OpenRouter 时 | OpenRouter API 密钥 |
-| `DEEPSEEK_API_KEY` | DeepSeek 时 | DeepSeek API 密钥 |
-| `DASHSCOPE_API_KEY` | Qwen 时 | 阿里云百炼 API 密钥 |
-| `TELEGRAM_BOT_TOKEN` | 可选 | Telegram bot token，从 [@BotFather](https://t.me/BotFather) 获取。设置后每次 digest 完成自动推送通知 |
-| `TELEGRAM_CHAT_ID` | 可选 | 接收通知的 Telegram 频道 / 群组 / 用户 ID |
-| `FEISHU_WEBHOOK_URLS` | 可选 | 飞书自定义机器人 Webhook URL，多个用英文逗号分隔。设置后每次 digest 完成自动推送卡片通知到所有群 |
-
-> `GITHUB_TOKEN` 由 GitHub Actions 自动提供，无需手动添加。使用 `github-copilot` 作为 Provider 时，同一 `GITHUB_TOKEN` 也用于 LLM 调用。
-
-**配置 Telegram 推送**（可选）：
-1. 向 [@BotFather](https://t.me/BotFather) 创建 bot，复制 token
-2. 将 bot 加入频道 / 群组，或直接与 bot 私聊
-3. 通过 [@userinfobot](https://t.me/userinfobot) 获取 chat ID
-4. 在仓库 Secrets 中添加 `TELEGRAM_BOT_TOKEN` 和 `TELEGRAM_CHAT_ID`
-
-> 两个 secret 均未设置时，通知步骤静默跳过，不影响正常运行。
-
-### 3. 启用工作流
-
-在 **Actions** 标签页中确认工作流已启用。
-
-如需立即测试，进入 **Actions → Daily Agents Radar → Run workflow** 手动触发。
-
-> **首次运行说明**：网页内容步骤将抓取最多 50 篇文章（每站 25 篇），可能需要额外几分钟。后续运行仅处理新内容，速度更快。
 
 ## LLM 模型供应商
 
@@ -315,7 +227,7 @@ export ANTHROPIC_API_KEY=sk-ant-xxxxxxxx
 # export LLM_PROVIDER=qwen
 # export DASHSCOPE_API_KEY=sk-xxxxxxxx
 
-export DIGEST_REPO=your-username/agents-radar  # 可选，留空则仅写入本地文件
+export DIGEST_REPO=your-username/sift  # 可选，留空则仅写入本地文件
 
 pnpm start
 ```
@@ -451,7 +363,3 @@ GitHub 的定时任务是排队执行的，并不准时 —— 本工作流实�
 | 06:37 次日 | `37 22 * * *` |
 | 07:37 次日 | `37 23 * * *` |
 | 08:37    | `37 0 * * *`   |
-
-## Star History
-
-[![Star History Chart](https://api.star-history.com/svg?repos=duanyytop/agents-radar&type=Date)](https://star-history.com/#duanyytop/agents-radar&Date)

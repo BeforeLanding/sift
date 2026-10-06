@@ -124,7 +124,7 @@ export async function fetchPhData(): Promise<PhData> {
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${token}`,
-        "User-Agent": "agents-radar/1.0",
+        "User-Agent": "sift/1.0",
       },
       body: JSON.stringify({
         query: POSTS_QUERY,

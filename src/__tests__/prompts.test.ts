@@ -6,7 +6,6 @@ import {
   topDiscussions,
   sampleNote,
   buildTranslationPrompt,
-  buildJsonTranslationPrompt,
 } from "../prompts.ts";
 import type { GitHubItem, GitHubDiscussion } from "../github.ts";
 
@@ -266,14 +265,5 @@ describe("buildTranslationPrompt", () => {
     const p = buildTranslationPrompt("body");
     expect(p).toContain("Preserve the Markdown structure");
     expect(p).toContain("repository slugs");
-  });
-});
-
-describe("buildJsonTranslationPrompt", () => {
-  it("embeds the JSON and requires valid JSON back with identical keys", () => {
-    const p = buildJsonTranslationPrompt('{"ai-cli":["a","b"]}');
-    expect(p).toContain('{"ai-cli":["a","b"]}');
-    expect(p).toContain("Return ONLY valid JSON");
-    expect(p).toContain("Keep every key exactly as-is");
   });
 });

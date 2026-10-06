@@ -12,7 +12,6 @@ import {
   OPENCLAW_ISSUE_TITLE,
   INFRA_ISSUE_TITLE,
   FOOTER,
-  NOTIFY_LABELS,
   REPORT_LABELS,
 } from "../i18n.ts";
 
@@ -143,20 +142,5 @@ describe("REPORT_LABELS", () => {
   it("covers the infra report in both languages", () => {
     expect(REPORT_LABELS["ai-infra"]).toBe("AI 基础设施日报");
     expect(REPORT_LABELS["ai-infra-en"]).toBe("AI Infrastructure Digest");
-  });
-});
-
-// ---------------------------------------------------------------------------
-// NOTIFY_LABELS
-// ---------------------------------------------------------------------------
-
-describe("NOTIFY_LABELS", () => {
-  it("covers all report types", () => {
-    const expected = ["ai-cli", "ai-agents", "ai-infra", "ai-web", "ai-trending", "ai-hn"];
-    for (const key of expected) {
-      expect(NOTIFY_LABELS[key]).toBeDefined();
-      expect(NOTIFY_LABELS[key]!.zh).toBeTruthy();
-      expect(NOTIFY_LABELS[key]!.en).toBeTruthy();
-    }
   });
 });

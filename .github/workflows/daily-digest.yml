@@ -1,4 +1,4 @@
-name: Daily Agents Radar
+name: sift
 
 on:
   schedule:
@@ -87,10 +87,10 @@ jobs:
           DASHSCOPE_API_KEY: ${{ secrets.DASHSCOPE_API_KEY }}
           # This workspace's dedicated MaaS endpoint. Workspace-scoped hosts
           # only accept keys issued to that same workspace, so the value is
-          # deployment-specific. If the trial run 404s rather than 401s, the
-          # path is wrong for the OpenAI-compatible client — try the
-          # /compatible-mode/v1 form of this same host.
-          DASHSCOPE_BASE_URL: https://ws-8vh9832rql2bepp1.cn-beijing.maas.aliyuncs.com/api/v1
+          # deployment-specific. The path must be /compatible-mode/v1 — the
+          # OpenAI-compatible one the SDK expects; the /api/v1 form the console
+          # shows is the native DashScope API and 404s for an OpenAI client.
+          DASHSCOPE_BASE_URL: https://ws-8vh9832rql2bepp1.cn-beijing.maas.aliyuncs.com/compatible-mode/v1
           # Unused while LLM_PROVIDER is qwen — kept so switching is one line.
           DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
           PRODUCTHUNT_TOKEN: ${{ secrets.PRODUCTHUNT_TOKEN }}
@@ -125,19 +125,6 @@ jobs:
             git pull --rebase
             git push
           fi
-
-      - name: Send Telegram notification
-        env:
-          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID || '@agents_radar' }}
-          PAGES_URL: https://beforelanding.github.io/sift
-        run: pnpm notify
-
-      - name: Send Feishu notification
-        env:
-          FEISHU_WEBHOOK_URLS: ${{ secrets.FEISHU_WEBHOOK_URLS }}
-          PAGES_URL: https://beforelanding.github.io/sift
-        run: pnpm notify:feishu
 
       - name: Close stale issues
         env:

@@ -1,5 +1,5 @@
 /**
- * agents-radar: daily digest for AI CLI tools and OpenClaw.
+ * sift: daily digest for AI CLI tools and OpenClaw.
  *
  * Env vars:
  *   LLM_PROVIDER        - "anthropic" | "openai" | "github-copilot" | "openrouter" (default: anthropic)
@@ -9,8 +9,6 @@
  * Provider-specific env vars — see src/providers/ for full list.
  */
 
-import fs from "node:fs";
-import path from "node:path";
 import {
   type GitHubItem,
   type RepoFetch,
@@ -29,20 +27,17 @@ import {
   buildInfraComparisonPrompt,
   buildPeersComparisonPrompt,
   buildSkillsPrompt,
-  buildJsonTranslationPrompt,
 } from "./prompts.ts";
-import { buildTrendingPrompt, buildHighlightsPrompt, type ReportHighlights } from "./prompts-data.ts";
+import { buildTrendingPrompt } from "./prompts-data.ts";
 import {
   callLlm,
   translateToZh,
-  parseLlmJson,
   saveFile,
   autoGenFooter,
   LLM_TOKENS_TRENDING,
   assertLlmHealthy,
   reportLlmHealth,
   llmHealthLine,
-  isConnectionError,
 } from "./report.ts";
 import {
   buildCliReportContent,
@@ -71,7 +66,7 @@ import { fetchLobstersData, type LobstersData } from "./lobsters.ts";
 import { loadConfig } from "./config.ts";
 import { createJev } from "./jev/client.ts";
 import { jevHealthLine, prefilterBundle, type FetchedData } from "./jev/filter.ts";
-import { toCstDateStr, toUtcStr, weekdayOf, sleep } from "./date.ts";
+import { toCstDateStr, toUtcStr, weekdayOf } from "./date.ts";
 import {
   type Lang,
   MSG,
@@ -413,14 +408,6 @@ async function translateSummaries(en: Summaries): Promise<Summaries> {
  */
 const HF_REPORT_WEEKDAY = 1;
 
-/**
- * Pause between the two highlights attempts when the first one died on a
- * connection failure. Long enough that attempt 2 lands outside the outage that
- * just consumed callLlm's retry ladder, short enough that a healthy provider
- * hiccup still costs the run a single minute.
- */
-const HIGHLIGHTS_COOLDOWN_MS = 60_000;
-
 async function main(): Promise<void> {
   requireEnv("GITHUB_TOKEN");
 
@@ -442,7 +429,7 @@ async function main(): Promise<void> {
 
   // 1b. Jev pre-filter — gate whole sources, then drop low-signal items. A
   // no-op when the interest profile is empty or Jev is unavailable, so this
-  // degrades to a plain agents-radar run rather than a thin one.
+  // degrades to a plain sift run rather than a thin one.
   console.log("  Running Jev pre-filter...");
   const jev = await createJev();
   const { data, gated } = await prefilterBundle(rawData, PROFILE, jev, new Set([OPENCLAW.id]));
@@ -613,90 +600,7 @@ async function main(): Promise<void> {
   // commit step, so they are never published.
   assertLlmHealthy("report");
 
-  // 5. Generate highlights for Telegram notification
-  const readReport = (name: string): string | undefined => {
-    const p = path.join("digests", dateStr, name);
-    return fs.existsSync(p) ? fs.readFileSync(p, "utf-8") : undefined;
-  };
-
-  // Highlights are extracted from the English reports only — the Chinese set is
-  // translated from the result, so the Chinese files are never re-read here.
-  const enReports: Record<string, string> = {
-    "ai-cli": cliContent.en,
-    "ai-agents": openclawContent.en,
-    "ai-infra": infraContent.en,
-  };
-  for (const [id, enFile] of [
-    ["ai-trending", "ai-trending-en.md"],
-    ["ai-web", "ai-web-en.md"],
-    ["ai-hn", "ai-hn-en.md"],
-    ["ai-ph", "ai-ph-en.md"],
-    ["ai-arxiv", "ai-arxiv-en.md"],
-    ["ai-hf", "ai-hf-en.md"],
-    ["ai-community", "ai-community-en.md"],
-  ] as const) {
-    const en = readReport(enFile);
-    if (en) enReports[id] = en;
-  }
-
-  console.log("  Generating highlights for Telegram...");
-  const highlights: Record<Lang, ReportHighlights> = { zh: {}, en: {} };
-  // Both passes parse JSON, and both retry once: the LLM occasionally emits
-  // slightly malformed JSON that repairJson can't fix (seen 2026-07-13: zh
-  // failed with "Expected ',' or ']' after array element"); a fresh generation
-  // usually returns valid JSON.
-  //
-  // A connection failure is a different animal: attempt 1 has already burned
-  // callLlm's full ~3 min connection ladder, so firing attempt 2 immediately
-  // re-enters an outage that is demonstrably still going. On 2026-09-19 both
-  // attempts failed back to back inside the same DashScope outage and the day
-  // shipped with an empty highlights.json — Telegram and Feishu rendered
-  // section links and no bullets. Wait out a cooldown first; a malformed-JSON
-  // retry still goes straight through.
-  const attemptJson = async (label: string, prompt: string): Promise<ReportHighlights> => {
-    for (let attempt = 1; attempt <= 2; attempt++) {
-      try {
-        return parseLlmJson<ReportHighlights>(await callLlm(prompt, 2048));
-      } catch (err) {
-        const tag = attempt < 2 ? "retrying" : "giving up";
-        console.error(`  [highlights] ${label} attempt ${attempt} failed (${tag}): ${err}`);
-        if (attempt < 2 && isConnectionError(err)) {
-          console.error(
-            `  [highlights] connection down — cooling down ${HIGHLIGHTS_COOLDOWN_MS / 1000}s before retry`,
-          );
-          await sleep(HIGHLIGHTS_COOLDOWN_MS);
-        }
-      }
-    }
-    return {};
-  };
-
-  // English is extracted from the reports; Chinese is translated from that
-  // result. The extraction prompt carries every report body, the translation
-  // prompt carries only the short highlight list.
-  highlights.en = await attemptJson("en", buildHighlightsPrompt(enReports, "en"));
-  highlights.zh = Object.keys(highlights.en).length
-    ? await attemptJson("zh", buildJsonTranslationPrompt(JSON.stringify(highlights.en)))
-    : {};
-
-  // If one language failed (generation or parse) but the other succeeded,
-  // backfill the empty one from the other so notifications never render with
-  // zero highlights. Seen 2026-07-13: zh failed intermittently while en was
-  // fine, leaving Telegram/Feishu with only section headers and no bullets.
-  const zhEmpty = Object.keys(highlights.zh).length === 0;
-  const enEmpty = Object.keys(highlights.en).length === 0;
-  if (zhEmpty && !enEmpty) {
-    console.warn("  [highlights] zh empty — backfilling from en");
-    highlights.zh = highlights.en;
-  } else if (enEmpty && !zhEmpty) {
-    console.warn("  [highlights] en empty — backfilling from zh");
-    highlights.en = highlights.zh;
-  }
-
-  const highlightsPath = saveFile(JSON.stringify(highlights, null, 2), dateStr, "highlights.json");
-  console.log(`  Saved ${highlightsPath}`);
-
-  // 6. Create GitHub issues for CLI + OpenClaw (zh + en)
+  // 5. Create GitHub issues for CLI + OpenClaw (zh + en)
   if (digestRepo) {
     for (const lang of ["zh", "en"] as const) {
       const cliUrl = await createGitHubIssue(

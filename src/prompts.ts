@@ -658,19 +658,3 @@ Rules:
 - Issue/PR references like #12345 and their link text stay as-is.
 - Use natural technical Chinese, the register of a Chinese developer newsletter — not a literal word-for-word rendering.`;
 }
-
-/** Prompt that translates the string values of a JSON object into Chinese. */
-export function buildJsonTranslationPrompt(json: string): string {
-  return `Translate the string values in the following JSON into Simplified Chinese.
-
-${json}
-
----
-
-Rules:
-- Return ONLY valid JSON. No markdown fences, no explanation.
-- Keep every key exactly as-is. Keep the array lengths and nesting identical.
-- Translate only the string values.
-- Keep project names, repository slugs, version tags and numbers in their original form.
-- Each translated string must stay under 30 Chinese characters.`;
-}
