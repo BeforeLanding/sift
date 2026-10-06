@@ -15,7 +15,12 @@
 
 import { OpenAICompatibleProvider } from "./openai-compatible.ts";
 
-const QWEN_BASE_URL = "https://ws-lp67r4thsmcegm03.cn-beijing.maas.aliyuncs.com/compatible-mode/v1";
+// Generic default: the public Beijing endpoint, which accepts any Model Studio
+// key. Upstream hardcodes a workspace-scoped dedicated MaaS host instead
+// (`ws-…maas.aliyuncs.com`), and those only accept keys issued to that same
+// workspace — so the deployment-specific host belongs in DASHSCOPE_BASE_URL,
+// not in this default.
+const QWEN_BASE_URL = "https://dashscope.aliyuncs.com/compatible-mode/v1";
 
 export class QwenProvider extends OpenAICompatibleProvider {
   readonly name = "qwen";

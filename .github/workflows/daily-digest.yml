@@ -9,8 +9,10 @@ on:
     # drops them under load, and the :00 slot is the most contended one. At
     # "0 23 * * *" this workflow degraded badly in August 2026: the 08-26 run
     # was dispatched 5h07m late and the 08-27 run was never created at all.
-    # qwen-flash has flat pricing, so moving the slot costs nothing (it would
-    # have, under DeepSeek's peak/off-peak scheme).
+    # This slot is off-peak under either provider: DeepSeek's peak is Beijing
+    # 09:00-12:00 / 14:00-18:00 on weekdays (weekends off-peak all day), and
+    # qwen-flash is flat-priced. A manual catch-up run dispatched during Beijing
+    # working hours would bill at DeepSeek's peak rate.
     - cron: "37 22 * * *"
   workflow_dispatch:
 
@@ -83,6 +85,14 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           LLM_PROVIDER: qwen
           DASHSCOPE_API_KEY: ${{ secrets.DASHSCOPE_API_KEY }}
+          # This workspace's dedicated MaaS endpoint. Workspace-scoped hosts
+          # only accept keys issued to that same workspace, so the value is
+          # deployment-specific. If the trial run 404s rather than 401s, the
+          # path is wrong for the OpenAI-compatible client — try the
+          # /compatible-mode/v1 form of this same host.
+          DASHSCOPE_BASE_URL: https://ws-8vh9832rql2bepp1.cn-beijing.maas.aliyuncs.com/api/v1
+          # Unused while LLM_PROVIDER is qwen — kept so switching is one line.
+          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
           PRODUCTHUNT_TOKEN: ${{ secrets.PRODUCTHUNT_TOKEN }}
           DIGEST_REPO: ${{ github.repository }}
           # Optional — no secret means the lenient offline mock runs instead.
