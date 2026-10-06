@@ -345,6 +345,7 @@ describe("QwenProvider", () => {
     const p = new QwenProvider({ apiKey: "sk-test" });
     const result = await p.call("prompt", 256);
     expect(result).toBe("Hello from Qwen");
+    expect(mockCreate).toHaveBeenCalledWith(expect.objectContaining({ enable_thinking: false }));
   });
 
   it(

@@ -30,6 +30,7 @@ export class QwenProvider extends OpenAICompatibleProvider {
       apiKey: opts?.apiKey ?? process.env["DASHSCOPE_API_KEY"],
       baseURL: opts?.baseURL ?? process.env["DASHSCOPE_BASE_URL"] ?? QWEN_BASE_URL,
       model: opts?.model ?? process.env["QWEN_MODEL"] ?? "qwen-flash",
+      requestExtras: { enable_thinking: false },
     });
   }
 }
