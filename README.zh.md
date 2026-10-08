@@ -2,7 +2,7 @@
 
 [English](./README.md) | 中文
 
-个人的 AI 每日简报。每天早上 07:00 CST 由 GitHub Actions 自动运行，聚合 10 个 AI 生态数据源，以中英双语报告的形式发布为 GitHub Issues 并提交为 Markdown 文件。
+个人 AI 简报。手动触发 GitHub Actions 工作流后，聚合 10 个 AI 生态数据源，以中英双语报告的形式发布为 GitHub Issues 并提交为 Markdown 文件。
 
 让它成为「我的项目」的那一环是**相关性预过滤**：`config.yml` 里的兴趣画像会在任何 LLM 调用之前，先决定整源是否跳过、再给单条内容打分，所以简报反映的是我真正关心的东西，token 消耗也低得多。
 
@@ -33,7 +33,7 @@
 
 **[https://beforelanding.github.io/sift/feed.xml](https://beforelanding.github.io/sift/feed.xml)**
 
-在任意 RSS 阅读器（Feedly、Reeder、NewsBlur 等）中订阅，每日自动推送新简报。Feed 包含最新 30 条报告（覆盖所有报告类型），与 `manifest.json` 同步更新。
+在任意 RSS 阅读器（Feedly、Reeder、NewsBlur 等）中订阅，发布新简报后即可收到更新。Feed 包含最新 30 条报告（覆盖所有报告类型），与 `manifest.json` 同步更新。
 
 ## MCP Server
 
@@ -176,7 +176,7 @@ LLM 负责过滤非 AI 项目，将结果按维度分类（AI 基础工具 / AI 
 - 抓取 Hacker News 过去 24 小时 AI 热门帖子（top 30，按分数排序），生成社区情绪报告
 - 以 GitHub Issues 形式发布报告，同时提交 Markdown 文件至 `digests/YYYY-MM-DD/`
 - 每份报告只用英文生成一次，再翻译成中文，不再对同一份数据跑两遍完整流水线
-- 每日通过 GitHub Actions 定时运行，支持手动触发
+- 通过 GitHub Actions 手动触发运行
 - 所有追踪仓库均可通过 `config.yml` 配置，无需修改代码
 
 ## LLM 模型供应商
@@ -194,7 +194,7 @@ LLM 负责过滤非 AI 项目，将结果按维度分类（AI 基础工具 / AI 
 
 可通过 `ANTHROPIC_MODEL`、`OPENAI_MODEL`、`GITHUB_COPILOT_MODEL`、`OPENROUTER_MODEL`、`DEEPSEEK_MODEL` 或 `QWEN_MODEL` 分别覆盖默认模型名称；Qwen 的接入点可用 `DASHSCOPE_BASE_URL` 覆盖。
 
-每日定时任务使用 `qwen` / `qwen-flash`。
+GitHub Actions 工作流使用 `qwen` / `qwen-flash`。
 
 Provider 抽象层位于 `src/providers/`，每个供应商对应独立文件并实现 `LlmProvider` 接口。新增供应商只需创建新文件并在工厂函数中注册。
 
@@ -348,18 +348,6 @@ OpenAI 内容精选            (research / release / company / safety / ...)
 
 历史简报存储在 [`digests/`](./digests/)。已发布的 Issues 按类型打标签：[`digest`](../../issues?q=is%3Aissue+label%3Adigest) · [`openclaw`](../../issues?q=is%3Aissue+label%3Aopenclaw) · [`web`](../../issues?q=is%3Aissue+label%3Aweb) · [`trending`](../../issues?q=is%3Aissue+label%3Atrending) · [`hn`](../../issues?q=is%3Aissue+label%3Ahn)。
 
-## 定时计划
+## 运行工作流
 
-默认 cron 表达式 `"37 22 * * *"` = **22:37 UTC = 次日 06:37 CST**。
-
-GitHub 的定时任务是排队执行的，并不准时 —— 本工作流实测延迟通常在 10~15 分钟，所以 06:37 CST 启动、约 07:00 CST 出报告。分钟数刻意避开整点：`:00` 是排队最挤的时段，工作流用 `0 23 * * *` 期间延迟从几分钟恶化到几小时（2026-08-26 那次晚了 5 小时 07 分才派发，2026-08-27 那次干脆没被创建）。
-
-定时任务迟到、你手动补跑一次之后，延迟的定时任务仍可能再跑一遍，生成同一天的报告并开出重复 issue。两道保险防止这种情况：workflow 级 `concurrency: daily-digest` 让重叠的 run 串行执行；`guard` job 会跳过 `digests/YYYY-MM-DD`（CST 日期）已提交的**定时** run。手动 `workflow_dispatch` 永远照常执行，需要重新生成时不受影响。
-
-修改时间请编辑 `.github/workflows/daily-digest.yml` 中的 cron 表达式：
-
-| CST      | UTC cron       |
-|----------|----------------|
-| 06:37 次日 | `37 22 * * *` |
-| 07:37 次日 | `37 23 * * *` |
-| 08:37    | `37 0 * * *`   |
+工作流没有定时触发。需要生成简报时，打开仓库的 **Actions** 页面，选择 **sift**，然后点击 **Run workflow**。`daily-digest` 并发组会让重叠的手动运行依次执行。

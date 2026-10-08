@@ -2,7 +2,7 @@
 
 English | [中文](./README.zh.md)
 
-A personal daily AI digest. A GitHub Actions workflow runs every morning at 07:00 CST, aggregates signals from 10 AI-ecosystem data sources, and publishes bilingual (Chinese + English) reports as GitHub Issues and committed Markdown files.
+A personal AI digest. A manually triggered GitHub Actions workflow aggregates signals from 10 AI-ecosystem data sources and publishes bilingual (Chinese + English) reports as GitHub Issues and committed Markdown files.
 
 The piece that makes it mine is a **relevance pre-filter**: an interest profile in `config.yml` gates whole sources and scores individual items *before* any LLM call, so the digest reflects what I actually care about and costs far fewer tokens.
 
@@ -33,7 +33,7 @@ Browse all historical digests in a clean, dark-themed interface — no login req
 
 **[https://beforelanding.github.io/sift/feed.xml](https://beforelanding.github.io/sift/feed.xml)**
 
-Subscribe in any RSS reader (Feedly, Reeder, NewsBlur, etc.) to receive new digests automatically. The feed includes the latest 30 reports across all report types, updated daily alongside `manifest.json`.
+Subscribe in any RSS reader (Feedly, Reeder, NewsBlur, etc.) to receive new digests when they are published. The feed includes the latest 30 reports across all report types and is updated alongside `manifest.json`.
 
 ## MCP Server
 
@@ -177,7 +177,7 @@ New articles are detected by comparing sitemap `lastmod` timestamps against a pe
 - Fetches top-30 AI stories from Hacker News (last 24h, ranked by points); generates community sentiment report
 - Publishes GitHub Issues for each report type; commits Markdown files to `digests/YYYY-MM-DD/`
 - Generates every report body once in English and translates it to Chinese, instead of running the whole pipeline twice per language
-- Runs on a daily schedule via GitHub Actions; supports manual triggering
+- Runs manually via GitHub Actions
 - All tracked repositories are configurable via `config.yml` — no code changes needed
 
 ## LLM providers
@@ -195,7 +195,7 @@ Set `LLM_PROVIDER` to choose which model backend powers the digest generation. D
 
 Override the model name with `ANTHROPIC_MODEL`, `OPENAI_MODEL`, `GITHUB_COPILOT_MODEL`, `OPENROUTER_MODEL`, `DEEPSEEK_MODEL`, or `QWEN_MODEL` respectively. The Qwen endpoint can be overridden with `DASHSCOPE_BASE_URL`.
 
-The scheduled daily run uses `qwen` / `qwen-flash`.
+The GitHub Actions workflow uses `qwen` / `qwen-flash`.
 
 The provider abstraction lives in `src/providers/` — each provider is a separate file implementing the `LlmProvider` interface. Adding a new provider only requires creating a new file and registering it in the factory.
 
@@ -359,14 +359,6 @@ Only the most recent day's issues are left open — `pnpm close-stale` closes ev
 
 Weekly and monthly rollup reports were discontinued in July 2026; past ones remain browsable under `digests/` and in the Web UI.
 
-## Schedule
+## Running the workflow
 
-| Workflow | Cron | UTC | CST |
-|----------|------|-----|-----|
-| Daily digest | `37 22 * * *` | 22:37 daily | 06:37 next day |
-
-To change the schedule, edit the cron expression in `.github/workflows/daily-digest.yml`.
-
-GitHub's scheduled runs are queued, not guaranteed — typical delay for this workflow is 10-15 minutes, so a 06:37 CST start lands the digest around 07:00 CST. The minute is off the hour on purpose: the `:00` slot is the most contended, and while this workflow sat at `0 23 * * *` the delays degraded from minutes to hours (the 2026-08-26 run was dispatched 5h07m late, and the 2026-08-27 run was never created at all).
-
-When a scheduled run is late enough that you dispatch a catch-up run manually, the two would otherwise both build the same day's digest and open a duplicate set of issues. Two guards prevent that: a `concurrency: daily-digest` group serializes overlapping runs, and a `guard` job skips any **scheduled** run whose `digests/YYYY-MM-DD` folder (CST date) is already committed. Manual `workflow_dispatch` runs always proceed, so you can still force a regeneration.
+The workflow has no scheduled trigger. To generate a digest, open the repository's **Actions** tab, select **sift**, and choose **Run workflow**. Overlapping manual runs are serialized by the `daily-digest` concurrency group.

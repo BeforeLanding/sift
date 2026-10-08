@@ -2,7 +2,7 @@
 
 ## Project overview
 
-sift is a daily digest generator for the AI open-source ecosystem. A GitHub Actions cron job runs at 22:37 UTC (06:37 CST next day) and produces bilingual (Chinese + English) reports, published as GitHub Issues and committed Markdown files.
+sift is a digest generator for the AI open-source ecosystem. A manually triggered GitHub Actions workflow produces bilingual (Chinese + English) reports, published as GitHub Issues and committed Markdown files.
 
 ## Commands
 
